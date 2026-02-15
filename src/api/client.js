@@ -1,8 +1,6 @@
 import { getAccessToken, getRefreshToken, login, logout } from '../store/auth.js';
 import { navigate } from '../router.js';
 
-const BASE_URL = 'http://localhost:8080';
-
 let _refreshPromise = null;
 
 async function refreshAccessToken() {
@@ -11,7 +9,7 @@ async function refreshAccessToken() {
     throw new Error('No refresh token');
   }
 
-  const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
+  const res = await fetch(`/api/v1/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
@@ -39,7 +37,7 @@ async function handleResponse(res) {
 }
 
 export async function apiFetch(path, options = {}) {
-  const url = `${BASE_URL}${path}`;
+  const url = path;
   const headers = { ...options.headers };
 
   const token = getAccessToken();
