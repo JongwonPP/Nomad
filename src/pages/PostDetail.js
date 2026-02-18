@@ -24,6 +24,20 @@ export function PostDetail(container, params) {
   let replyingTo = null;
   let editingCommentId = null;
 
+  function updateCommentLike(commentList, commentId, liked, likeCount) {
+    for (const c of commentList) {
+      if (c.id === commentId) {
+        c.liked = liked;
+        c.likeCount = likeCount;
+        return true;
+      }
+      if (c.replies) {
+        if (updateCommentLike(c.replies, commentId, liked, likeCount)) return true;
+      }
+    }
+    return false;
+  }
+
   async function fetchPost() {
     post = await apiFetch(`/api/v1/boards/${boardId}/posts/${postId}`);
   }
@@ -57,6 +71,9 @@ export function PostDetail(container, params) {
         ` : `
           <div class="comment-content">${renderContent(escapeHtml(comment.content))}</div>
           <div class="comment-actions">
+            ${loggedIn ? `<button class="btn-link like-comment-btn" data-comment-id="${comment.id}" data-liked="${comment.liked || false}">
+              ${comment.liked ? '❤️' : '🤍'} ${comment.likeCount ?? 0}
+            </button>` : `<span class="comment-like-count">${comment.likeCount ? `🤍 ${comment.likeCount}` : ''}</span>`}
             ${!isReply && loggedIn ? `<button class="btn btn-sm btn-link reply-btn" data-comment-id="${comment.id}">답글</button>` : ''}
             ${isAuthor ? `
               <button class="btn btn-sm btn-link edit-comment-btn" data-comment-id="${comment.id}">수정</button>
@@ -103,6 +120,11 @@ export function PostDetail(container, params) {
             <span class="post-date">${formatDate(post.createdAt)}</span>
             <span class="post-views">조회 ${post.viewCount}</span>
           </div>
+          <div class="post-like">
+            <button class="btn btn-sm ${post.liked ? 'btn-liked' : ''}" id="post-like-btn">
+              ${post.liked ? '❤️' : '🤍'} 좋아요 ${post.likeCount ?? 0}
+            </button>
+          </div>
           ${isAuthor ? `
             <div class="post-actions">
               <a href="/boards/${boardId}/posts/${postId}/edit" data-link class="btn btn-secondary btn-sm">수정</a>
@@ -143,6 +165,40 @@ export function PostDetail(container, params) {
         }
       });
     }
+
+    const postLikeBtn = container.querySelector('#post-like-btn');
+    if (postLikeBtn) {
+      postLikeBtn.addEventListener('click', async () => {
+        if (!isLoggedIn()) {
+          alert('로그인이 필요합니다.');
+          return;
+        }
+        try {
+          const method = post.liked ? 'DELETE' : 'POST';
+          const result = await apiFetch(`/api/v1/posts/${postId}/likes`, { method });
+          post.liked = result.liked;
+          post.likeCount = result.likeCount;
+          render();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+    }
+
+    container.querySelectorAll('.like-comment-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const commentId = btn.dataset.commentId;
+        const liked = btn.dataset.liked === 'true';
+        try {
+          const method = liked ? 'DELETE' : 'POST';
+          const result = await apiFetch(`/api/v1/comments/${commentId}/likes`, { method });
+          updateCommentLike(comments, Number(commentId), result.liked, result.likeCount);
+          render();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+    });
 
     const commentForm = container.querySelector('#comment-form');
     if (commentForm) {

@@ -11,13 +11,14 @@ export function BoardDetail(container, params) {
   let totalCount = 0;
   let currentPage = 0;
   let editing = false;
+  let currentSort = 'latest';
 
   async function fetchBoard() {
     board = await apiFetch(`/api/v1/boards/${boardId}`);
   }
 
   async function fetchPosts(page) {
-    const data = await apiFetch(`/api/v1/boards/${boardId}/posts?page=${page}&size=${PAGE_SIZE}`);
+    const data = await apiFetch(`/api/v1/boards/${boardId}/posts?page=${page}&size=${PAGE_SIZE}&sort=${currentSort}`);
     posts = data.posts || [];
     totalCount = data.totalCount || 0;
     currentPage = data.page ?? page;
@@ -69,11 +70,17 @@ export function BoardDetail(container, params) {
           `}
         </div>
 
-        ${loggedIn ? `
-          <div class="board-toolbar">
-            <a href="/boards/${boardId}/posts/new" data-link class="btn btn-primary">글쓰기</a>
+        <div class="board-toolbar">
+          <div class="sort-select">
+            <select id="sort-select">
+              <option value="latest" ${currentSort === 'latest' ? 'selected' : ''}>최신순</option>
+              <option value="oldest" ${currentSort === 'oldest' ? 'selected' : ''}>오래된순</option>
+              <option value="views" ${currentSort === 'views' ? 'selected' : ''}>조회수순</option>
+              <option value="likes" ${currentSort === 'likes' ? 'selected' : ''}>좋아요순</option>
+            </select>
           </div>
-        ` : ''}
+          ${loggedIn ? `<a href="/boards/${boardId}/posts/new" data-link class="btn btn-primary">글쓰기</a>` : ''}
+        </div>
 
         ${posts.length === 0 ? `
           <p class="empty-message">게시글이 없습니다.</p>
@@ -84,6 +91,7 @@ export function BoardDetail(container, params) {
                 <th class="col-title">제목</th>
                 <th class="col-author">작성자</th>
                 <th class="col-views">조회</th>
+                <th class="col-likes">좋아요</th>
                 <th class="col-date">날짜</th>
               </tr>
             </thead>
@@ -95,6 +103,7 @@ export function BoardDetail(container, params) {
                   </td>
                   <td class="col-author">${post.nickname}</td>
                   <td class="col-views">${post.viewCount}</td>
+                  <td class="col-likes">${post.likeCount ?? 0}</td>
                   <td class="col-date">${formatDate(post.createdAt)}</td>
                 </tr>
               `).join('')}
@@ -176,6 +185,19 @@ export function BoardDetail(container, params) {
 
     if (nextBtn) {
       nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
+    }
+
+    const sortSelect = container.querySelector('#sort-select');
+    if (sortSelect) {
+      sortSelect.addEventListener('change', async () => {
+        currentSort = sortSelect.value;
+        try {
+          await fetchPosts(0);
+          render();
+        } catch (err) {
+          alert('게시글을 불러오지 못했습니다: ' + err.message);
+        }
+      });
     }
 
     container.querySelectorAll('.page-num').forEach((btn) => {

@@ -10,7 +10,9 @@ export function Header(container) {
         <div class="header-inner">
           <a href="/" data-link class="logo">Nomad</a>
           <nav>
+            <a href="/search" data-link>검색</a>
             ${loggedIn ? `
+              <a href="/my/posts" data-link>내 글</a>
               <span>${user?.nickname || ''}</span>
               <a href="/profile" data-link>프로필</a>
               <button class="btn btn-sm header-logout">로그아웃</button>
