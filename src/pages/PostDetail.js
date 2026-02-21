@@ -132,6 +132,30 @@ export function PostDetail(container, params) {
             </div>
           ` : ''}
           <div class="post-content">${escapeHtml(post.content).replace(/\n/g, '<br>')}</div>
+          ${(post.images && post.images.length > 0) ? `
+            <div class="image-gallery">
+              ${post.images.map(img => `
+                <div class="image-gallery-item">
+                  <img src="${img.imageUrl}" alt="${escapeHtml(img.originalFilename)}" class="gallery-img" data-url="${img.imageUrl}" />
+                  ${isAuthor ? `<button class="image-delete-btn" data-image-id="${img.id}">&times;</button>` : ''}
+                  <span class="image-filename">${escapeHtml(img.originalFilename)}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+          ${isAuthor ? `
+            <div class="image-upload-section">
+              <p class="image-count">${(post.images || []).length}/5</p>
+              ${(post.images || []).length < 5 ? `
+                <div class="image-upload-area" id="image-upload-area">
+                  <p class="upload-icon">📷</p>
+                  <p>클릭하여 이미지 추가</p>
+                  <p class="upload-hint">JPEG, PNG, GIF, WEBP (최대 5MB)</p>
+                </div>
+                <input type="file" id="image-file-input" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" />
+              ` : ''}
+            </div>
+          ` : ''}
         </article>
 
         <section class="comments-section">
@@ -306,6 +330,59 @@ export function PostDetail(container, params) {
         }
       });
     });
+
+    // Image lightbox
+    container.querySelectorAll('.gallery-img').forEach((img) => {
+      img.addEventListener('click', () => {
+        const lightbox = document.createElement('div');
+        lightbox.className = 'image-lightbox';
+        lightbox.innerHTML = `<img src="${img.dataset.url}" />`;
+        lightbox.addEventListener('click', () => lightbox.remove());
+        document.body.appendChild(lightbox);
+      });
+    });
+
+    // Image delete
+    container.querySelectorAll('.image-delete-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const imageId = btn.dataset.imageId;
+        if (!confirm('이 이미지를 삭제하시겠습니까?')) return;
+        try {
+          await apiFetch(`/api/v1/posts/${postId}/images/${imageId}`, { method: 'DELETE' });
+          await fetchPost();
+          render();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+    });
+
+    // Image upload
+    const uploadArea = container.querySelector('#image-upload-area');
+    const fileInput = container.querySelector('#image-file-input');
+    if (uploadArea && fileInput) {
+      uploadArea.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        uploadArea.style.pointerEvents = 'none';
+        uploadArea.style.opacity = '0.5';
+        uploadArea.innerHTML = '<p>업로드 중...</p>';
+        try {
+          await apiFetch(`/api/v1/posts/${postId}/images`, {
+            method: 'POST',
+            body: formData,
+          });
+          await fetchPost();
+          render();
+        } catch (err) {
+          alert(err.message);
+          render();
+        }
+      });
+    }
   }
 
   async function init() {
